@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #sudoku, #sudokuKeySelector {
+            transform: translate(-50%, -50%);
+            position:absolute;
+            top: 50%;
+            left: 50%;
+        }
+
+        .sudokuKey {
+            width: 1cm;
+            height: 1cm;
+            background: white;
+            border: 1px solid black;
+            transform: translate(-50%, -50%);
+            position: absolute;
+            border-radius: 6px;
+
+            font-family: Tahoma;
+            font-size: 20px;
+        }
+
+        .sudokuBold {
+            font-weight: bold
+        }
+
+        .numberSelector {
+            width: 1cm;
+            height: 1.5cm;
+            background: white;
+            border: 1px solid black;
+            transform: translate(-50%, -50%);
+            position: absolute;
+            border-radius: 6px;
+
+            font-family: Tahoma;
+            font-size: 20px;
+        }
+
+        span[id^="select"][id$="C"] {
+            font-size: 10px;
+            color: blue;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sudokuKeySelector">
+        <button class="numberSelector" id="select1" onclick="place(1)">1<br><span id="select1C"></span></button>
+        <button class="numberSelector" id="select2" onclick="place(2)">2<br><span id="select2C"></span></button>
+        <button class="numberSelector" id="select3" onclick="place(3)">3<br><span id="select3C"></span></button>
+        <button class="numberSelector" id="select4" onclick="place(4)">4<br><span id="select4C"></span></button>
+        <button class="numberSelector" id="select5" onclick="place(5)">5<br><span id="select5C"></span></button>
+        <button class="numberSelector" id="select6" onclick="place(6)">6<br><span id="select6C"></span></button>
+        <button class="numberSelector" id="select7" onclick="place(7)">7<br><span id="select7C"></span></button>
+        <button class="numberSelector" id="select8" onclick="place(8)">8<br><span id="select8C"></span></button>
+        <button class="numberSelector" id="select9" onclick="place(9)">9<br><span id="select9C"></span></button>
+    </div>
+
+    <script src="sudoku.js"></script>
+    <script>
+        var validSudoku, sudoku, origoSudoku;
+        if (localStorage.getItem("sudoku_1D7fe8") == null) {
+            validSudoku = generateValidFullSudoku();
+            sudoku = removeCellsFromValidSudokuToValidSudoku(validSudoku, 40);
+            origoSudoku = sudoku
+            localStorage.setItem("sudoku_1D7fe8", JSON.stringify({"sudoku": sudoku, "validSudoku": validSudoku, "origoSudoku": origoSudoku}));
+        } else {
+            let t = JSON.parse(localStorage.getItem("sudoku_1D7fe8"))
+            validSudoku = t["validSudoku"];
+            sudoku = t["sudoku"]
+            origoSudoku = t["origoSudoku"]
+        }
+
+        console.log(validSudoku, sudoku,origoSudoku)
+        var theme = {
+            "textColor":   "#111111",
+            "borderSel":   "#111111",
+            "selectNei":   "#d0d0d0",
+            "hilSameNum":  "#888888",
+            "errors":      "#f00000",
+            "background":  "#f0f0f0",
+            "chillBorder": "#202020"
+        }
+
+        function needsStart() {
+            for (let i = 0; i < 81; i++) {
+                document.getElementById(`sudoku${i}`).style.color = getTheme("textColor")
+            }
+        }
+
+        function looper() {
+            localStorage.setItem("sudoku_1D7fe8", JSON.stringify({"sudoku": sudoku, "validSudoku": validSudoku, "origoSudoku": origoSudoku}));
+        }
+        setInterval(looper, 100)
+
+        function getTheme(kw) {
+            return theme[kw]
+        }
+
+        // Table creation script
+        let p = document.createElement("div");
+        p.id = "sudoku"
+        for (let o = 0; o < 81; o++) {
+            let i = document.createElement("button");
+            i.id = `sudoku${o}`
+            i.classList.add("sudokuKey");
+            if (origoSudoku[o] != ".") i.classList.add("sudokuBold")
+            i.onclick = () => {
+                selected = [o%9, Math.floor(o/9)]
+                choose(o);
+            };
+            p.appendChild(i)
+        }
+        document.body.appendChild(p);
+
+        // positioning each button
+        document.querySelectorAll(`.sudokuKey`).forEach(kw => {
+            let id = Number(kw.id.slice(6));
+            let cords = [id%9-4, Math.floor(id/9)-4];
+            let gap = 1.1;
+            let element = document.getElementById(`sudoku${id}`)
+            element.style.left = `${gap*cords[0]}cm`;
+            element.style.top = `${gap*cords[1]}cm`;
+        })
+
+        // positioning each select button
+         document.querySelectorAll(`.numberSelector`).forEach(kw => {
+            let id = kw.id.slice(6);
+            let cords = id-5;
+            let gap = 1.1;
+            let element = document.getElementById(`select${id}`)
+            element.style.left = `${gap*cords}cm`;
+            element.style.top = `${gap*5.5}cm`;
+         })
+
+        
+
+        let selected = [0, 0];
+        function place(f) {
+            let index = selected[0]+(selected[1]*9)
+            if (origoSudoku[index] == ".") {
+                sudoku = replaceChar(sudoku, index, f.toString())
+            }
+            
+            for (let i = 1; i <= 9; i++) {
+                let len = 9-(sudoku.match(new RegExp(`${i}`, "g")) || []).length
+                document.getElementById(`select${i}`).style.display = len ? "block" : "none"
+                document.getElementById(`select${i}C`).innerHTML = len
+            }
+            
+            rewriteSudoku();
+            choose(index)
+        }
+
+        for (let i = 1; i <= 9; i++) {
+            let len = 9-(sudoku.match(new RegExp(`${i}`, "g")) || []).length
+            document.getElementById(`select${i}`).style.display = len ? "block" : "none"
+            document.getElementById(`select${i}C`).innerHTML = len
+        }
+
+        function rewriteSudoku() {
+            for (let i = 0; i < 81; i++) {
+                document.getElementById(`sudoku${i}`).innerHTML = sudoku[i] == "." ? " " : sudoku[i]
+            }
+        }
+
+        function choose(index) {   
+            let c = [index%9, Math.floor(index/9)]
+            let kwr = [];
+            let t;
+
+            // blok
+            t = Math.floor(c[0]/3)*3+(Math.floor(c[1]/3)*9)*3
+            kwr.push(...[t, t+1, t+2, t+9, t+9+1, t+9+2, t+18, t+18+1, t+18+2])
+        
+            // lajna 
+            t = c[1]*9
+            kwr.push(...[t, t+1, t+2, t+3, t+4, t+5, t+6, t+7, t+8])
+
+            // sloup
+            t = c[0]
+            kwr.push(...[t, t+9, t+18, t+27, t+36, t+45, t+54, t+63, t+72])
+            
+            // hilight same numbsers
+            let k = [];
+            for (let i = 0; i < 81; i++) {
+                if (sudoku[i] == sudoku[selected[0]+(selected[1]*9)] && sudoku[selected[0]+(selected[1]*9)] != ".") k.push(i)
+            }
+            hil(kwr, controlSudoku(), selected, k)
+        }
+        rewriteSudoku();
+
+        function hil(forSelectedNeighbours=[], forErrors=[], forSelected=selected, forSameNums=[]) {
+            if (forSelectedNeighbours.length || forErrors.length) for (let i = 0; i < 81; i++) {
+                document.getElementById(`sudoku${i}`).style.background = getTheme("background")
+            }
+            for (let i = 0; i < 81; i++) {
+                document.getElementById(`sudoku${i}`).style.border = `1px solid ${getTheme("chillBorder")}`;
+            }
+
+            forSelectedNeighbours.forEach(i => {
+                document.getElementById(`sudoku${i}`).style.background = getTheme("selectNei");
+            })
+            forErrors.forEach(i => {
+                document.getElementById(`sudoku${i}`).style.background = getTheme("errors");
+            })
+            forSameNums.forEach(i => {
+                document.getElementById(`sudoku${i}`).style.background = getTheme("hilSameNum");
+            })
+
+            document.getElementById(`sudoku${forSelected[0]+(forSelected[1]*9)}`).style.border = `2px solid ${getTheme("borderSel")}`;
+        }
+        function controlSudoku() {
+            let errors = [];
+            for (let p = 0; p < 81; p++) {
+                if (validSudoku[p] != sudoku[p].replace(".", validSudoku[p])) {
+                    errors.push(p)
+                }
+            }
+            return errors
+        }
+
+        function replaceChar(str, index, char) {
+            return str.substring(0, index) + char + str.substring(index + 1);
+        }
+
+        needsStart()
+    </script>
+</body>
+</html>
