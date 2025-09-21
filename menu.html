@@ -1,0 +1,16 @@
+<button onclick="continueGame()">Continue 44:39</button>
+
+<span>New game</span>
+<button onclick="newGame('easy')">Easy</button>
+<button onclick="newGame('medium')">Medium</button>
+<button onclick="newGame('hard')">Hard</button>
+
+<script>
+  function newGame(f) {
+    location.href = `game.html?mode=${f}`
+  }
+
+  function continueGame() {
+    location.href = `game.html?mode=cont`
+  }
+</script>
